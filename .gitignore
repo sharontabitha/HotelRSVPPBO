@@ -10,3 +10,6 @@
 *.sqlite-wal
 /backup
 /oracleJdk-*/
+.env
+.env.*
+!.env.example

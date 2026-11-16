@@ -24,6 +24,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 
 public final class MySqlHotelRepository implements HotelDataStore {
     private static final String DEFAULT_URL =
@@ -38,19 +40,47 @@ public final class MySqlHotelRepository implements HotelDataStore {
     public MySqlHotelRepository(String url, String username, String password, Path sqliteFile) {
         this.url = required(url, "STAYEASE_DB_URL");
         this.username = required(username, "STAYEASE_DB_USER");
-        if (password == null || password.isBlank()) {
-            throw new IllegalArgumentException("Environment variable STAYEASE_DB_PASSWORD wajib diatur.");
-        }
-        this.password = password;
+        this.password = password == null ? "" : password;
         this.sqliteFile = sqliteFile.toAbsolutePath().normalize();
     }
 
     public static MySqlHotelRepository fromEnvironment(Path sqliteFile) {
+        Map<String, String> dotenv;
+        try {
+            dotenv = readDotEnv(Path.of(System.getProperty("user.dir"), ".env"));
+        } catch (IOException exception) {
+            throw new IllegalStateException("Tidak dapat membaca file .env: " + exception.getMessage(), exception);
+        }
         return new MySqlHotelRepository(
-                environmentOrDefault("STAYEASE_DB_URL", DEFAULT_URL),
-                System.getenv("STAYEASE_DB_USER"),
-                System.getenv("STAYEASE_DB_PASSWORD"),
+                configuredValue("STAYEASE_DB_URL", DEFAULT_URL, dotenv),
+                configuredValue("STAYEASE_DB_USER", null, dotenv),
+                configuredValue("STAYEASE_DB_PASSWORD", "", dotenv),
                 sqliteFile);
+    }
+
+    private static Map<String, String> readDotEnv(Path path) throws IOException {
+        Map<String, String> values = new HashMap<>();
+        if (!Files.isRegularFile(path)) return values;
+        for (String line : Files.readAllLines(path)) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) continue;
+            int separator = trimmed.indexOf('=');
+            if (separator <= 0) continue;
+            String key = trimmed.substring(0, separator).trim();
+            String value = trimmed.substring(separator + 1).trim();
+            if ((value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2)
+                    || (value.startsWith("'") && value.endsWith("'") && value.length() >= 2)) {
+                value = value.substring(1, value.length() - 1);
+            }
+            values.put(key, value);
+        }
+        return values;
+    }
+
+    private static String configuredValue(String name, String fallback, Map<String, String> dotenv) {
+        String environmentValue = System.getenv(name);
+        if (environmentValue != null) return environmentValue;
+        return dotenv.getOrDefault(name, fallback);
     }
 
     @Override
@@ -406,11 +436,6 @@ public final class MySqlHotelRepository implements HotelDataStore {
         } catch (IllegalArgumentException exception) {
             throw new IOException("Data kamar MySQL tidak valid: " + exception.getMessage(), exception);
         }
-    }
-
-    private static String environmentOrDefault(String name, String fallback) {
-        String value = System.getenv(name);
-        return value == null || value.isBlank() ? fallback : value.trim();
     }
 
     private static String required(String value, String name) {
