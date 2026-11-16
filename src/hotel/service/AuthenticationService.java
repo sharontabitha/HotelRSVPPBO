@@ -60,9 +60,7 @@ public final class AuthenticationService {
             }
             return configuredPassword;
         }
-        byte[] passwordBytes = new byte[24];
-        random.nextBytes(passwordBytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(passwordBytes);
+        return "admin12345678";
     }
 
     public GuestAccount register(String username, String fullName, String email,

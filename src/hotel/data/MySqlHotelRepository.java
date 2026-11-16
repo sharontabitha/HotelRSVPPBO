@@ -38,18 +38,15 @@ public final class MySqlHotelRepository implements HotelDataStore {
     public MySqlHotelRepository(String url, String username, String password, Path sqliteFile) {
         this.url = required(url, "STAYEASE_DB_URL");
         this.username = required(username, "STAYEASE_DB_USER");
-        if (password == null || password.isBlank()) {
-            throw new IllegalArgumentException("Environment variable STAYEASE_DB_PASSWORD wajib diatur.");
-        }
-        this.password = password;
+        this.password = password == null ? "" : password;
         this.sqliteFile = sqliteFile.toAbsolutePath().normalize();
     }
 
     public static MySqlHotelRepository fromEnvironment(Path sqliteFile) {
         return new MySqlHotelRepository(
                 environmentOrDefault("STAYEASE_DB_URL", DEFAULT_URL),
-                System.getenv("STAYEASE_DB_USER"),
-                System.getenv("STAYEASE_DB_PASSWORD"),
+                environmentOrDefault("STAYEASE_DB_USER", "root"),
+                environmentOrDefault("STAYEASE_DB_PASSWORD", ""),
                 sqliteFile);
     }
 

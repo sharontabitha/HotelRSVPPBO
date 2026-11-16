@@ -125,17 +125,26 @@ public final class HotelApp {
                 StayEaseTheme.install();
                 boolean previewMode = args.length > 0 && "--preview".equals(args[0]);
                 var userHome = java.nio.file.Path.of(System.getProperty("user.home"));
-                HotelDataStore repository;
-                if (previewMode) {
+                HotelService hotelService;
+                try {
+                    HotelDataStore repository;
+                    if (previewMode) {
+                        var previewDatabase = userHome.resolve(".stayease-preview")
+                                .resolve("stayease-preview.sqlite");
+                        repository = new HotelRepository(previewDatabase);
+                    } else {
+                        var legacyDatabase = userHome.resolve(".kompeni-inn")
+                                .resolve("kompeni-inn.sqlite");
+                        repository = MySqlHotelRepository.fromEnvironment(legacyDatabase);
+                    }
+                    hotelService = new HotelService(repository);
+                } catch (Exception ex) {
+                    System.out.println("Catatan: MySQL belum aktif/diatur (" + ex.getMessage() + "). Menggunakan database SQLite lokal.");
                     var previewDatabase = userHome.resolve(".stayease-preview")
                             .resolve("stayease-preview.sqlite");
-                    repository = new HotelRepository(previewDatabase);
-                } else {
-                    var legacyDatabase = userHome.resolve(".kompeni-inn")
-                            .resolve("kompeni-inn.sqlite");
-                    repository = MySqlHotelRepository.fromEnvironment(legacyDatabase);
+                    hotelService = new HotelService(new HotelRepository(previewDatabase));
                 }
-                HotelApp app = new HotelApp(new HotelController(new HotelService(repository)));
+                HotelApp app = new HotelApp(new HotelController(hotelService));
                 app.frame.setVisible(true);
             } catch (Exception exception) {
                 JOptionPane.showMessageDialog(null,
