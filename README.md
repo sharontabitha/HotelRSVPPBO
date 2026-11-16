@@ -27,15 +27,15 @@ The guest login, registration, booking, and reservation features are retained. T
    CREATE DATABASE stayease CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    ```
 
-2. Set connection variables in the process environment. The password must not be committed to the project:
+2. Create a `.env` file in the project root (copy `.env.example`) and set your local connection:
 
-   ```powershell
-   $env:STAYEASE_DB_URL = "jdbc:mysql://localhost:3306/stayease?serverTimezone=UTC"
-   $env:STAYEASE_DB_USER = "your-mysql-user"
-   $env:STAYEASE_DB_PASSWORD = "your-local-mysql-password"
+   ```env
+   STAYEASE_DB_URL=jdbc:mysql://localhost:3306/stayease?serverTimezone=UTC
+   STAYEASE_DB_USER=root
+   STAYEASE_DB_PASSWORD=
    ```
 
-   `STAYEASE_DB_URL` defaults to the local URL above. The user and password are required. The JDBC URL can be changed for a remote server; configure TLS in that URL where required.
+   The blank password is valid for a local Laragon installation whose MySQL `root` account has no password. If you have configured a password, put it after `=`. `.env` is read from the project working directory and is excluded from Git. Process environment variables take precedence. `STAYEASE_DB_URL` defaults to the local URL above; configure TLS in the URL when using a remote server.
 
 3. On its first successful connection, StayEase creates its tables. If the MySQL rooms table is empty, the app imports the existing database at `%USERPROFILE%\.kompeni-inn\kompeni-inn.sqlite`; it records a migration marker so this import is not repeated. The SQLite database is read-only during import and is never deleted. If no SQLite database exists, the initial room inventory is created in MySQL.
 
