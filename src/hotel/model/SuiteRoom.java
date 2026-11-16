@@ -1,6 +1,7 @@
 package hotel.model;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public final class SuiteRoom extends Room {
     private static final long serialVersionUID = 1L;
@@ -12,6 +13,13 @@ public final class SuiteRoom extends Room {
 
     @Override
     public String getCategory() { return "Presidential Royal Penthouse"; }
+
     @Override
     protected BigDecimal rateMultiplier() { return new BigDecimal("1.30"); }
+
+    @Override
+    public BigDecimal hitungTarif() {
+        // Fasilitas Suite: Private balcony, wine cellar pribadi, layanan butler 24/7 (+30%)
+        return getBaseRate().multiply(rateMultiplier()).setScale(0, RoundingMode.HALF_UP);
+    }
 }
