@@ -1,0 +1,12 @@
+/bin/
+/out/
+/target/
+*.class
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+/backup
+/oracleJdk-*/
