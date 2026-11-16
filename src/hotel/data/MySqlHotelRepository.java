@@ -428,9 +428,9 @@ public final class MySqlHotelRepository implements HotelDataStore {
                                    BigDecimal rate, String amenities, RoomStatus status) throws IOException {
         try {
             return switch (category) {
-                case "Deluxe Heritage Room" -> new StandardRoom(number, floor, bed, capacity, rate, amenities, status);
-                case "Grand Executive Suite" -> new DeluxeRoom(number, floor, bed, capacity, rate, amenities, status);
-                case "Presidential Royal Penthouse" -> new SuiteRoom(number, floor, bed, capacity, rate, amenities, status);
+                case "Standard Room", "Deluxe Heritage Room" -> new StandardRoom(number, floor, bed, capacity, rate, amenities, status);
+                case "Deluxe Room", "Grand Executive Suite" -> new DeluxeRoom(number, floor, bed, capacity, rate, amenities, status);
+                case "Suite Room", "Presidential Royal Penthouse" -> new SuiteRoom(number, floor, bed, capacity, rate, amenities, status);
                 default -> throw new IOException("Tipe kamar MySQL tidak dikenal: " + category);
             };
         } catch (IllegalArgumentException exception) {

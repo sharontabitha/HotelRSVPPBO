@@ -93,13 +93,13 @@ CREATE TABLE IF NOT EXISTS app_metadata (
 -- DATA AWAL / SEEDING (Kamar Bawaan & Konten Beranda)
 -- ==============================================================
 
--- Data Awal Kamar Hotel
+-- Data Awal Kamar Hotel (Sesuai dengan kelas StandardRoom, DeluxeRoom, SuiteRoom)
 INSERT IGNORE INTO rooms (room_number, category, floor, bed_type, capacity, base_rate, amenities, status) VALUES
-('101', 'Standard Room', 'Lantai 1', 'King Size Royal', 2, 2400000.0000, 'Wi-Fi, sarapan, city view', 'AVAILABLE'),
-('102', 'Standard Room', 'Lantai 1', 'Twin Hollywood', 2, 2600000.0000, 'Wi-Fi, sarapan, rain shower', 'AVAILABLE'),
-('202', 'Deluxe Room', 'Lantai 2', 'King Size Royal', 3, 3100000.0000, 'Balkon, bathtub, sarapan', 'AVAILABLE'),
-('303', 'Deluxe Room', 'Lantai 3', 'Super King Imperial', 3, 4250000.0000, 'City view, lounge, butler', 'AVAILABLE'),
-('403', 'Suite Room', 'Lantai 4', 'Super King Imperial', 6, 7500000.0000, 'Private balcony, wine cellar, butler 24/7', 'AVAILABLE');
+('101', 'Deluxe Heritage Room', 'Lantai 1', 'King Size Royal', 2, 2400000.0000, 'Wi-Fi, sarapan, city view', 'AVAILABLE'),
+('102', 'Deluxe Heritage Room', 'Lantai 1', 'Twin Hollywood', 2, 2600000.0000, 'Wi-Fi, sarapan, rain shower', 'AVAILABLE'),
+('202', 'Grand Executive Suite', 'Lantai 2', 'King Size Royal', 3, 3100000.0000, 'Balkon, bathtub, sarapan', 'AVAILABLE'),
+('303', 'Grand Executive Suite', 'Lantai 3', 'Super King Imperial', 3, 4250000.0000, 'City view, lounge, butler', 'AVAILABLE'),
+('403', 'Presidential Royal Penthouse', 'Lantai 4', 'Super King Imperial', 6, 7500000.0000, 'Private balcony, wine cellar, butler 24/7', 'AVAILABLE');
 
 -- Data Awal Pengaturan Konten Beranda
 INSERT IGNORE INTO home_content (id, hero_title, welcome_message, booking_notice, show_room_catalog, show_amenities, show_booking_notice) VALUES

@@ -37,6 +37,34 @@ public abstract class Room implements Serializable, Billable {
     @Override
     public BigDecimal calculateTotal() { return getNightlyRate(); }
 
+    /**
+     * Menghitung tarif per malam untuk kamar ini.
+     * Mengimplementasikan polimorfisme (tarif berbeda sesuai tipe kamar dan fasilitas).
+     */
+    public BigDecimal hitungTarif() {
+        return getNightlyRate();
+    }
+
+    /**
+     * Overloading 1: Menghitung tarif berdasarkan durasi (jumlah malam).
+     */
+    public BigDecimal hitungTarif(int jumlahMalam) {
+        if (jumlahMalam < 1) throw new IllegalArgumentException("Jumlah malam minimal 1.");
+        return hitungTarif().multiply(BigDecimal.valueOf(jumlahMalam));
+    }
+
+    /**
+     * Overloading 2: Menghitung tarif dengan durasi malam dan potongan diskon (0-100%).
+     */
+    public BigDecimal hitungTarif(int jumlahMalam, double diskonPersen) {
+        if (diskonPersen < 0 || diskonPersen > 100) {
+            throw new IllegalArgumentException("Diskon harus berada dalam rentang 0-100%.");
+        }
+        BigDecimal total = hitungTarif(jumlahMalam);
+        BigDecimal faktorDiskon = BigDecimal.valueOf(1.0 - (diskonPersen / 100.0));
+        return total.multiply(faktorDiskon).setScale(0, RoundingMode.HALF_UP);
+    }
+
     public void updateDetails(String floor, String bedType, int capacity, BigDecimal baseRate,
                               String amenities, RoomStatus status) {
         setFloor(floor);

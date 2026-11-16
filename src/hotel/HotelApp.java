@@ -358,16 +358,33 @@ public final class HotelApp {
             sections.add(roomCardGrid(service.getRooms()));
             sections.add(Box.createVerticalStrut(20));
         }
-        JPanel details = new JPanel(new GridLayout(1, 0, 12, 0));
-        details.setOpaque(false);
-        if (content.isShowAmenities()) {
-            details.add(infoCard("LAYANAN ISTIMEWA", "Sarapan, city view, bathtub, dan layanan concierge.", "Kenyamanan untuk setiap momen."));
-        }
-        if (content.isShowBookingNotice()) {
-            details.add(infoCard("INFORMASI RESERVASI", content.getBookingNotice(), "Reservasi dapat dilihat dari menu Reservasi Saya."));
-        }
-        if (details.getComponentCount() > 0) {
+        if (content.isShowAmenities() || content.isShowBookingNotice()) {
+            sections.add(sectionHeading("Informasi & Layanan Hotel", "Fasilitas eksklusif dan panduan lengkap untuk kenyamanan menginap Anda."));
+            sections.add(Box.createVerticalStrut(14));
+            JPanel details = new JPanel(new GridLayout(1, 0, 14, 0));
+            details.setOpaque(false);
+            if (content.isShowAmenities()) {
+                details.add(photoInfoCard("LAYANAN ISTIMEWA",
+                        "Fasilitas & Layanan Unggulan",
+                        "Sarapan prasmanan lezat, pemandangan kota spektakuler, bathtub santai, dan layanan concierge 24 jam siap memanjakan hari Anda.",
+                        "Kenyamanan istimewa untuk setiap momen menginap.",
+                        "amenities",
+                        List.of("✓  Gourmet breakfast & santap malam berkelas",
+                                "✓  City view eksklusif, bathtub & private balcony",
+                                "✓  Layanan concierge & room service 24 jam siap sedia")));
+            }
+            if (content.isShowBookingNotice()) {
+                details.add(photoInfoCard("INFORMASI RESERVASI",
+                        "Ketentuan & Jaminan Reservasi",
+                        content.getBookingNotice(),
+                        "Reservasi Anda tersimpan aman dan dapat dicek kapan saja.",
+                        "reservation",
+                        List.of("✓  Check-in mulai pukul 14:00 · Check-out maks 12:00",
+                                "✓  Konfirmasi pemesanan instan tanpa biaya tersembunyi",
+                                "✓  Pantau & kelola reservasi via menu Reservasi Saya")));
+            }
             sections.add(details);
+            sections.add(Box.createVerticalStrut(20));
         }
         JScrollPane scroll = new JScrollPane(sections);
         scroll.setBorder(BorderFactory.createEmptyBorder());
@@ -1219,6 +1236,60 @@ public final class HotelApp {
         return brand;
     }
 
+    private JPanel photoInfoCard(String tag, String title, String body, String footer, String type, List<String> bulletPoints) {
+        JPanel card = cardPanel();
+        card.setLayout(new BorderLayout(0, 0));
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER),
+                BorderFactory.createEmptyBorder(8, 8, 14, 8)));
+
+        BannerPhotoPanel banner = new BannerPhotoPanel(type, footer, new Dimension(320, 148));
+        card.add(banner, BorderLayout.NORTH);
+
+        JPanel details = new JPanel();
+        details.setOpaque(false);
+        details.setBorder(BorderFactory.createEmptyBorder(14, 10, 4, 10));
+        details.setLayout(new BoxLayout(details, BoxLayout.Y_AXIS));
+
+        details.add(label(tag, 11, BLUE_ACCENT, true));
+        details.add(Box.createVerticalStrut(5));
+        details.add(label(title, 16, TEXT, true));
+        details.add(Box.createVerticalStrut(8));
+
+        JLabel desc = label("<html><body style='width: 290px'>" + html(body) + "</body></html>", 13, MUTED, false);
+        details.add(desc);
+        details.add(Box.createVerticalStrut(12));
+
+        if (bulletPoints != null && !bulletPoints.isEmpty()) {
+            for (String pt : bulletPoints) {
+                JLabel item = label(pt, 12, TEXT, false);
+                details.add(item);
+                details.add(Box.createVerticalStrut(5));
+            }
+            details.add(Box.createVerticalStrut(8));
+        }
+
+        JLabel footerTag = label("● " + footer, 11, BLUE_ACCENT, true);
+        details.add(footerTag);
+
+        card.add(details, BorderLayout.CENTER);
+
+        card.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent event) {
+                card.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(BLUE_ACCENT),
+                        BorderFactory.createEmptyBorder(8, 8, 14, 8)));
+            }
+            @Override public void mouseExited(MouseEvent event) {
+                card.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(BORDER),
+                        BorderFactory.createEmptyBorder(8, 8, 14, 8)));
+            }
+        });
+
+        return card;
+    }
+
     private JPanel infoCard(String title, String body, String footer) {
         JPanel card = cardPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
@@ -1376,9 +1447,9 @@ public final class HotelApp {
     private Room createRoom(String category, String number, String floor, String bed, int capacity,
                             BigDecimal rate, String amenities, RoomStatus status) {
         return switch (category) {
-            case "Deluxe Heritage Room" -> new StandardRoom(number, floor, bed, capacity, rate, amenities, status);
-            case "Grand Executive Suite" -> new DeluxeRoom(number, floor, bed, capacity, rate, amenities, status);
-            case "Presidential Royal Penthouse" -> new SuiteRoom(number, floor, bed, capacity, rate, amenities, status);
+            case "Standard Room", "Deluxe Heritage Room" -> new StandardRoom(number, floor, bed, capacity, rate, amenities, status);
+            case "Deluxe Room", "Grand Executive Suite" -> new DeluxeRoom(number, floor, bed, capacity, rate, amenities, status);
+            case "Suite Room", "Presidential Royal Penthouse" -> new SuiteRoom(number, floor, bed, capacity, rate, amenities, status);
             default -> throw new IllegalArgumentException("Tipe kamar tidak dikenal.");
         };
     }
@@ -1540,6 +1611,113 @@ public final class HotelApp {
                 copy.drawString(caption, (width - textWidth) / 2, height / 2 + 39);
             }
             copy.dispose();
+        }
+    }
+
+    private static final class BannerPhotoPanel extends JPanel {
+        private static final long serialVersionUID = 1L;
+        private final String type;
+        private final String subtitle;
+        private transient BufferedImage image;
+
+        private BannerPhotoPanel(String type, String subtitle, Dimension preferredSize) {
+            this.type = type;
+            this.subtitle = subtitle;
+            setPreferredSize(preferredSize);
+            setMinimumSize(new Dimension(180, 135));
+            setOpaque(false);
+            loadImageIfPresent();
+        }
+
+        private void loadImageIfPresent() {
+            String[] possibleFiles = "amenities".equalsIgnoreCase(type)
+                    ? new String[]{"amenities.png", "amenities.jpg", "amenities.jpeg", "fasilitas.png", "fasilitas.jpg"}
+                    : new String[]{"reservation.png", "reservation.jpg", "notice.png", "notice.jpg", "reservasi.png", "reservasi.jpg"};
+            for (String name : possibleFiles) {
+                java.io.File file = new java.io.File(name);
+                if (file.isFile() && file.canRead()) {
+                    try {
+                        image = ImageIO.read(file);
+                        if (image != null) break;
+                    } catch (IOException ignored) {}
+                }
+            }
+        }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            super.paintComponent(graphics);
+            Graphics2D copy = (Graphics2D) graphics.create();
+            copy.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            copy.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            int width = getWidth();
+            int height = getHeight();
+
+            copy.clip(new RoundRectangle2D.Float(0, 0, width, height, 16, 16));
+
+            if (image != null) {
+                double scale = Math.max((double) width / image.getWidth(),
+                        (double) height / image.getHeight());
+                int imageWidth = (int) Math.ceil(image.getWidth() * scale);
+                int imageHeight = (int) Math.ceil(image.getHeight() * scale);
+                copy.drawImage(image, (width - imageWidth) / 2,
+                        (height - imageHeight) / 2, imageWidth, imageHeight, null);
+                copy.setPaint(new GradientPaint(0, height - 70, new Color(0, 0, 0, 0),
+                        0, height, new Color(0, 0, 0, 180)));
+                copy.fillRect(0, height - 70, width, 70);
+            } else if ("amenities".equalsIgnoreCase(type)) {
+                copy.setPaint(new GradientPaint(0, 0, new Color(20, 36, 62), width, height, new Color(38, 76, 130)));
+                copy.fillRoundRect(0, 0, width, height, 16, 16);
+                copy.setColor(new Color(255, 215, 120, 24));
+                copy.fillOval(width - 110, -25, 150, 150);
+                copy.fillOval(width - 50, height - 60, 95, 95);
+                copy.setColor(new Color(255, 255, 255, 12));
+                copy.fillOval(18, height - 75, 90, 90);
+            } else {
+                copy.setPaint(new GradientPaint(0, 0, new Color(16, 48, 62), width, height, new Color(26, 88, 112)));
+                copy.fillRoundRect(0, 0, width, height, 16, 16);
+                copy.setColor(new Color(90, 225, 215, 24));
+                copy.fillOval(width - 120, -30, 155, 155);
+                copy.fillOval(width - 45, height - 55, 90, 90);
+                copy.setColor(new Color(255, 255, 255, 12));
+                copy.fillOval(25, -25, 80, 80);
+            }
+
+            boolean isAmenities = "amenities".equalsIgnoreCase(type);
+            if (isAmenities) {
+                drawPillBadge(copy, 16, 16, "★  LAYANAN BINTANG 5", new Color(255, 218, 125), new Color(0, 0, 0, 120));
+                copy.setFont(new Font("SansSerif", Font.PLAIN, 40));
+                copy.drawString("🛎️", width - 75, height / 2 + 15);
+                copy.setColor(Color.WHITE);
+                copy.setFont(new Font("SansSerif", Font.BOLD, 17));
+                copy.drawString("Layanan Istimewa & Concierge", 16, height - 35);
+                copy.setColor(new Color(210, 230, 255));
+                copy.setFont(new Font("SansSerif", Font.PLAIN, 11));
+                copy.drawString("Concierge · Gourmet Breakfast · 24/7 Service", 16, height - 16);
+            } else {
+                drawPillBadge(copy, 16, 16, "🛡️  GARANSI & KEBIJAKAN", new Color(135, 245, 235), new Color(0, 0, 0, 120));
+                copy.setFont(new Font("SansSerif", Font.PLAIN, 40));
+                copy.drawString("📅", width - 75, height / 2 + 15);
+                copy.setColor(Color.WHITE);
+                copy.setFont(new Font("SansSerif", Font.BOLD, 17));
+                copy.drawString("Informasi & Ketentuan Reservasi", 16, height - 35);
+                copy.setColor(new Color(210, 242, 238));
+                copy.setFont(new Font("SansSerif", Font.PLAIN, 11));
+                copy.drawString("Check-in Cepat · Konfirmasi Instan · Garansi Kamar", 16, height - 16);
+            }
+
+            copy.dispose();
+        }
+
+        private void drawPillBadge(Graphics2D g2, int x, int y, String text, Color textColor, Color bgColor) {
+            g2.setFont(new Font("SansSerif", Font.BOLD, 10));
+            int textWidth = g2.getFontMetrics().stringWidth(text);
+            int pillWidth = textWidth + 18;
+            int pillHeight = 22;
+            g2.setColor(bgColor);
+            g2.fillRoundRect(x, y, pillWidth, pillHeight, 11, 11);
+            g2.setColor(textColor);
+            g2.drawString(text, x + 9, y + 15);
         }
     }
 
