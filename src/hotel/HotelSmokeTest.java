@@ -11,6 +11,8 @@ import hotel.model.ReservationStatus;
 import hotel.model.Room;
 import hotel.model.RoomStatus;
 import hotel.model.StandardRoom;
+import hotel.model.DeluxeRoom;
+import hotel.model.SuiteRoom;
 import hotel.service.AuthenticationService;
 import hotel.service.HotelService;
 
@@ -45,6 +47,15 @@ public final class HotelSmokeTest {
                     "HotelSmokeTest-Admin-2026".toCharArray());
             check(admin.getRole().name().equals("ADMIN"), "Admin role and initial login");
 
+            // Uji Polimorfisme & Overloading hitungTarif() sesuai rubrik tema
+            Room testStd = new StandardRoom("S01", "Lantai 1", "King", 2, new BigDecimal("1000000"), "Wi-Fi", RoomStatus.AVAILABLE);
+            Room testDlx = new DeluxeRoom("D01", "Lantai 2", "King", 2, new BigDecimal("1000000"), "Bathtub", RoomStatus.AVAILABLE);
+            Room testSte = new SuiteRoom("P01", "Lantai 3", "Imperial", 4, new BigDecimal("1000000"), "Butler", RoomStatus.AVAILABLE);
+            check(testStd.hitungTarif().compareTo(new BigDecimal("1000000")) == 0, "Polimorfisme StandardRoom hitungTarif");
+            check(testDlx.hitungTarif().compareTo(new BigDecimal("1150000")) == 0, "Polimorfisme DeluxeRoom hitungTarif (+15%)");
+            check(testSte.hitungTarif().compareTo(new BigDecimal("1300000")) == 0, "Polimorfisme SuiteRoom hitungTarif (+30%)");
+            check(testDlx.hitungTarif(3).compareTo(new BigDecimal("3450000")) == 0, "Overloading hitungTarif(jumlahMalam)");
+            check(testDlx.hitungTarif(3, 10.0).compareTo(new BigDecimal("3105000")) == 0, "Overloading hitungTarif(jumlahMalam, diskonPersen)");
             service.register("demo.guest", "Demo Guest", "demo@example.test", "08123456789",
                     "guestPass123".toCharArray());
             check(service.login("DEMO.GUEST", "guestPass123".toCharArray()).getRole().name().equals("GUEST"),

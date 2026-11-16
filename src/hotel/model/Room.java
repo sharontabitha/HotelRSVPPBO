@@ -30,23 +30,15 @@ public abstract class Room implements Serializable, Billable {
     public abstract String getCategory();
     protected abstract BigDecimal rateMultiplier();
 
-    public BigDecimal getNightlyRate() {
-        return baseRate.multiply(rateMultiplier()).setScale(0, RoundingMode.HALF_UP);
-    }
-
-    @Override
-    public BigDecimal calculateTotal() { return getNightlyRate(); }
-
     /**
-     * Menghitung tarif per malam untuk kamar ini.
-     * Mengimplementasikan polimorfisme (tarif berbeda sesuai tipe kamar dan fasilitas).
+     * Polimorfisme (Overriding):
+     * Method abstrak untuk menghitung tarif per malam sesuai fasilitas masing-masing tipe kamar.
+     * Di-override oleh StandardRoom (1.0x), DeluxeRoom (1.15x), dan SuiteRoom (1.30x).
      */
-    public BigDecimal hitungTarif() {
-        return getNightlyRate();
-    }
+    public abstract BigDecimal hitungTarif();
 
     /**
-     * Overloading 1: Menghitung tarif berdasarkan durasi (jumlah malam).
+     * Overloading 1: Menghitung total tarif berdasarkan jumlah malam menginap.
      */
     public BigDecimal hitungTarif(int jumlahMalam) {
         if (jumlahMalam < 1) throw new IllegalArgumentException("Jumlah malam minimal 1.");
@@ -54,7 +46,7 @@ public abstract class Room implements Serializable, Billable {
     }
 
     /**
-     * Overloading 2: Menghitung tarif dengan durasi malam dan potongan diskon (0-100%).
+     * Overloading 2: Menghitung total tarif dengan durasi malam dan potongan diskon (0-100%).
      */
     public BigDecimal hitungTarif(int jumlahMalam, double diskonPersen) {
         if (diskonPersen < 0 || diskonPersen > 100) {
@@ -63,6 +55,15 @@ public abstract class Room implements Serializable, Billable {
         BigDecimal total = hitungTarif(jumlahMalam);
         BigDecimal faktorDiskon = BigDecimal.valueOf(1.0 - (diskonPersen / 100.0));
         return total.multiply(faktorDiskon).setScale(0, RoundingMode.HALF_UP);
+    }
+
+    public BigDecimal getNightlyRate() {
+        return hitungTarif();
+    }
+
+    @Override
+    public BigDecimal calculateTotal() {
+        return hitungTarif();
     }
 
     public void updateDetails(String floor, String bedType, int capacity, BigDecimal baseRate,
