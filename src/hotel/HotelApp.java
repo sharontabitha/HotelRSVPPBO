@@ -18,6 +18,7 @@ import hotel.data.HotelRepository;
 import hotel.data.MySqlHotelRepository;
 import hotel.ui.AdminWorkspace;
 import hotel.ui.DashboardPanel;
+import hotel.ui.DatePicker;
 import hotel.ui.MainFrame;
 import hotel.ui.StayEaseTheme;
 
@@ -107,8 +108,8 @@ public final class HotelApp {
     private JComboBox<String> roomCategoryFilter;
     private JComboBox<String> roomStatusFilter;
     private JTabbedPane guestTabs;
-    private JSpinner bookingCheckIn;
-    private JSpinner bookingCheckOut;
+    private DatePicker bookingCheckIn;
+    private DatePicker bookingCheckOut;
     private JSpinner bookingGuests;
     private JComboBox<Room> bookingRoomChoice;
     private Timer screenTransition;
@@ -193,9 +194,7 @@ public final class HotelApp {
         c.insets = new Insets(0, 28, 0, 0);
         body.add(loginCard(), c);
         page.add(body, BorderLayout.CENTER);
-
-        JLabel footer = label("StayEase  ·  Temukan kenyamanan di setiap perjalanan", 12, MUTED, false);
-        page.add(footer, BorderLayout.SOUTH);
+        page.add(createAuthFooter(), BorderLayout.SOUTH);
         screens.add(page, "auth");
         fadeTo("auth");
         frame.setTitle("StayEase | Masuk");
@@ -308,6 +307,7 @@ public final class HotelApp {
         guestTabs.addTab("Reservasi saya", guestReservationsPanel());
         guestTabs.addTab("Kamar & Suites", publicRoomsPanel());
         page.add(guestTabs, BorderLayout.CENTER);
+        page.add(createAppFooter(), BorderLayout.SOUTH);
         screens.removeAll();
         screens.add(page, "guest");
         fadeTo("guest");
@@ -403,29 +403,47 @@ public final class HotelApp {
         c.insets = new Insets(3, 5, 3, 9);
         c.fill = GridBagConstraints.HORIZONTAL;
         c.weightx = 1;
-        JSpinner checkIn = dateSpinner(LocalDate.now().plusDays(1));
-        JSpinner checkOut = dateSpinner(LocalDate.now().plusDays(2));
+        DatePicker checkIn = new DatePicker(LocalDate.now().plusDays(1));
+        DatePicker checkOut = new DatePicker(LocalDate.now().plusDays(2));
+        checkIn.setMinDate(LocalDate.now());
+        checkOut.setMinDate(checkIn.getDate().plusDays(1));
+        checkIn.addDateChangeListener(newDate -> {
+            if (!checkOut.getDate().isAfter(newDate)) {
+                checkOut.setDate(newDate.plusDays(1));
+            }
+            checkOut.setMinDate(newDate.plusDays(1));
+        });
         JSpinner guests = new JSpinner(new SpinnerNumberModel(2, 1, 12, 1));
-        search.add(searchField("CHECK-IN", checkIn), gridCell(c, 0, 0, 1));
-        search.add(searchField("CHECK-OUT", checkOut), gridCell(c, 1, 0, 1));
+        search.add(searchField("CHECK-IN (KALENDER)", checkIn), gridCell(c, 0, 0, 1));
+        search.add(searchField("CHECK-OUT (KALENDER)", checkOut), gridCell(c, 1, 0, 1));
         search.add(searchField("JUMLAH TAMU", guests), gridCell(c, 2, 0, 1));
-        JButton find = primaryButton("Cari kamar");
-        find.setPreferredSize(new Dimension(145, 44));
+
+        JPanel buttonWrapper = new JPanel(new BorderLayout(0, 6));
+        buttonWrapper.setOpaque(false);
+        JLabel emptyLabel = new JLabel(" ");
+        emptyLabel.setFont(new Font("SansSerif", Font.BOLD, 10));
+        buttonWrapper.add(emptyLabel, BorderLayout.NORTH);
+
+        JButton find = primaryButton("🔍  Cari Ketersediaan");
+        find.setPreferredSize(new Dimension(175, 38));
+        find.setToolTipText("Cari kamar yang siap dipesan untuk tanggal dan tamu ini");
+        buttonWrapper.add(find, BorderLayout.CENTER);
+
         c.gridx = 3;
         c.gridy = 0;
         c.weightx = 0;
         c.insets = new Insets(3, 6, 3, 0);
-        search.add(find, c);
+        search.add(buttonWrapper, c);
         find.addActionListener(event -> runAction(() -> {
             if (bookingCheckIn == null || bookingCheckOut == null || bookingGuests == null
                     || bookingRoomChoice == null) {
                 throw new IllegalStateException("Form pemesanan belum siap. Silakan coba kembali.");
             }
-            bookingCheckIn.setValue(checkIn.getValue());
-            bookingCheckOut.setValue(checkOut.getValue());
+            bookingCheckIn.setDate(checkIn.getDate());
+            bookingCheckOut.setDate(checkOut.getDate());
             bookingGuests.setValue(guests.getValue());
             guestTabs.setSelectedIndex(1);
-            searchAvailableRooms(bookingCheckIn, bookingCheckOut, bookingGuests, bookingRoomChoice);
+            searchAvailableRooms(bookingCheckIn, bookingCheckOut, bookingGuests, bookingRoomChoice, null, null, true);
         }));
         return search;
     }
@@ -452,59 +470,106 @@ public final class HotelApp {
     }
 
     private JPanel bookingPanel() {
-        JPanel panel = new JPanel(new BorderLayout(18, 18));
+        JPanel panel = new JPanel(new BorderLayout(14, 14));
         panel.setOpaque(false);
-        panel.setBorder(BorderFactory.createEmptyBorder(24, 32, 24, 32));
+        panel.setBorder(BorderFactory.createEmptyBorder(16, 28, 16, 28));
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false);
-        top.add(sectionHeading("Pesan Kamar", "Pilih tanggal menginap dan kamar yang tersedia."), BorderLayout.WEST);
-        panel.add(top, BorderLayout.NORTH);
+        top.add(sectionHeading("Pesan Kamar", "Pilih tanggal menginap dan periksa kamar yang tersedia."), BorderLayout.WEST);
 
         JPanel form = cardPanel();
         form.setLayout(new GridBagLayout());
         form.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(BORDER),
-                BorderFactory.createEmptyBorder(22, 24, 22, 24)));
+                BorderFactory.createEmptyBorder(18, 22, 18, 22)));
         GridBagConstraints c = constraints();
-        c.insets = new Insets(9, 8, 9, 8);
+        c.insets = new Insets(6, 8, 6, 8);
         c.fill = GridBagConstraints.HORIZONTAL;
         c.weightx = 1;
-        JSpinner checkIn = dateSpinner(LocalDate.now().plusDays(1));
-        JSpinner checkOut = dateSpinner(LocalDate.now().plusDays(2));
+
+        DatePicker checkIn = new DatePicker(LocalDate.now().plusDays(1));
+        DatePicker checkOut = new DatePicker(LocalDate.now().plusDays(2));
+        checkIn.setMinDate(LocalDate.now());
+        checkOut.setMinDate(checkIn.getDate().plusDays(1));
+        checkIn.addDateChangeListener(newDate -> {
+            if (!checkOut.getDate().isAfter(newDate)) {
+                checkOut.setDate(newDate.plusDays(1));
+            }
+            checkOut.setMinDate(newDate.plusDays(1));
+        });
+
         JSpinner guests = new JSpinner(new SpinnerNumberModel(1, 1, 12, 1));
         JComboBox<Room> rooms = new JComboBox<>();
         bookingCheckIn = checkIn;
         bookingCheckOut = checkOut;
         bookingGuests = guests;
         bookingRoomChoice = rooms;
-        addFormRow(form, c, 0, "Check-in", checkIn);
-        addFormRow(form, c, 1, "Check-out", checkOut);
+
+        addFormRow(form, c, 0, "Tanggal check-in", checkIn);
+        addFormRow(form, c, 1, "Tanggal check-out", checkOut);
         addFormRow(form, c, 2, "Jumlah tamu", guests);
-        addFormRow(form, c, 3, "Kamar tersedia", rooms);
 
-        JButton search = secondaryButton("Cari ketersediaan");
+        // Tombol Cari Ketersediaan Aktif & Status
+        JPanel searchBarPanel = new JPanel(new BorderLayout(12, 0));
+        searchBarPanel.setOpaque(false);
+        JButton search = primaryButton("🔍  Cari Ketersediaan");
+        search.setPreferredSize(new Dimension(195, 38));
+        search.setToolTipText("Klik untuk mencari kamar yang siap dipesan sesuai tanggal dan jumlah tamu");
+        JLabel searchStatus = new JLabel("Silakan klik 'Cari Ketersediaan' untuk mengecek ketersediaan kamar.");
+        searchStatus.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        searchStatus.setForeground(MUTED);
+        searchBarPanel.add(search, BorderLayout.WEST);
+        searchBarPanel.add(searchStatus, BorderLayout.CENTER);
+
         c.gridx = 0;
-        c.gridy = 4;
+        c.gridy = 3;
         c.gridwidth = 2;
-        form.add(search, c);
+        form.add(searchBarPanel, c);
+
+        addFormRow(form, c, 4, "Kamar tersedia", rooms);
+
+        // Ringkasan Kamar & Estimasi Total Biaya (Polimorfisme & Overloading hitungTarif)
+        JPanel summaryCard = new JPanel(new BorderLayout(8, 6));
+        summaryCard.setBackground(PALE_BLUE);
+        summaryCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(191, 219, 254), 1),
+                BorderFactory.createEmptyBorder(10, 14, 10, 14)));
+        JLabel summaryTitle = label("Rincian Kamar & Estimasi Biaya", 12, BLUE_ACCENT, true);
+        JLabel summaryDetails = label("Pilih kamar di atas untuk melihat rincian tarif dan total biaya menginap.", 12, TEXT, false);
+        summaryCard.add(summaryTitle, BorderLayout.NORTH);
+        summaryCard.add(summaryDetails, BorderLayout.CENTER);
+        addFormRow(form, c, 5, "Rincian tarif", summaryCard);
+
+        Runnable updateSummary = () -> {
+            Room selected = (Room) rooms.getSelectedItem();
+            if (selected == null) {
+                summaryDetails.setText("Belum ada kamar yang dipilih atau tersedia pada tanggal ini.");
+                return;
+            }
+            long nights = java.time.temporal.ChronoUnit.DAYS.between(checkIn.getDate(), checkOut.getDate());
+            if (nights < 1) nights = 1;
+            BigDecimal totalBiaya = selected.hitungTarif((int) nights);
+            String floorText = selected.getFloor().toLowerCase(Locale.ROOT).startsWith("lantai")
+                    ? selected.getFloor() : "Lantai " + selected.getFloor();
+            String htmlText = "<html><b>" + html(selected.getCategory()) + "</b> (Kamar " + selected.getNumber() + " · " + html(floorText) + ")<br>"
+                    + "Tipe Ranjang: " + html(selected.getBedType()) + " · Fasilitas: " + html(selected.getAmenities()) + "<br>"
+                    + "Tarif: <b>" + CURRENCY.format(selected.getNightlyRate()) + "</b> / malam &times; <b>" + nights + " malam</b> = "
+                    + "<span style='color:#1e3a8a; font-size:14px; font-weight:bold;'>" + CURRENCY.format(totalBiaya) + "</span></html>";
+            summaryDetails.setText(htmlText);
+        };
+        rooms.addActionListener(event -> updateSummary.run());
+
         search.addActionListener(event -> runAction(() ->
-                searchAvailableRooms(checkIn, checkOut, guests, rooms)));
+                searchAvailableRooms(checkIn, checkOut, guests, rooms, searchStatus, updateSummary, true)));
 
-        try {
-            List<Room> initialRooms = service.findAvailableRooms(dateValue(checkIn), dateValue(checkOut),
-                    (Integer) guests.getValue());
-            rooms.setModel(new DefaultComboBoxModel<>(initialRooms.toArray(Room[]::new)));
-        } catch (Exception ignored) {
-        }
-
-        JTextArea notes = textArea(3);
-        addFormRow(form, c, 5, "Permintaan khusus", new JScrollPane(notes));
+        JTextArea notes = textArea(2);
+        addFormRow(form, c, 6, "Permintaan khusus", new JScrollPane(notes));
         JComboBox<String> payment = new JComboBox<>(new String[]{
                 "Transfer Bank Virtual Account", "QRIS", "Kartu Kredit", "Bayar di Front Desk"
         });
-        addFormRow(form, c, 6, "Metode pembayaran", payment);
+        addFormRow(form, c, 7, "Metode pembayaran", payment);
         JButton book = primaryButton("Konfirmasi reservasi");
         c.gridx = 0;
-        c.gridy = 7;
+        c.gridy = 8;
         c.gridwidth = 2;
         form.add(book, c);
         book.addActionListener(event -> runAction(() -> {
@@ -512,22 +577,76 @@ public final class HotelApp {
             if (selected == null) throw new IllegalArgumentException("Cari dan pilih kamar yang tersedia terlebih dahulu.");
             GuestAccount guest = (GuestAccount) currentAccount;
             Reservation reservation = service.createReservation(guest.getUsername(), guest.getFullName(),
-                    guest.getPhone(), selected.getNumber(), dateValue(checkIn), dateValue(checkOut),
+                    guest.getPhone(), selected.getNumber(), checkIn.getDate(), checkOut.getDate(),
                     (Integer) guests.getValue(), (String) payment.getSelectedItem(), notes.getText());
             showBookingInvoiceDialog(reservation, selected);
             showGuestHome();
         }));
-        panel.add(form, BorderLayout.CENTER);
+
+        // Pencarian ketersediaan awal agar dropdown terisi otomatis TANPA pop-up
+        SwingUtilities.invokeLater(() -> {
+            try {
+                searchAvailableRooms(checkIn, checkOut, guests, rooms, searchStatus, updateSummary, false);
+            } catch (Exception ignored) {}
+        });
+
+        JPanel content = new JPanel(new BorderLayout(0, 14));
+        content.setOpaque(false);
+        content.add(top, BorderLayout.NORTH);
+        content.add(form, BorderLayout.CENTER);
+
+        JScrollPane scroll = new JScrollPane(content);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
 
-    private void searchAvailableRooms(JSpinner checkIn, JSpinner checkOut,
+    private void searchAvailableRooms(DatePicker checkIn, DatePicker checkOut,
                                       JSpinner guests, JComboBox<Room> rooms) throws Exception {
-        List<Room> found = service.findAvailableRooms(dateValue(checkIn), dateValue(checkOut),
-                (Integer) guests.getValue());
+        searchAvailableRooms(checkIn, checkOut, guests, rooms, null, null, true);
+    }
+
+    private void searchAvailableRooms(DatePicker checkIn, DatePicker checkOut,
+                                      JSpinner guests, JComboBox<Room> rooms,
+                                      JLabel statusLabel, Runnable onUpdate) throws Exception {
+        searchAvailableRooms(checkIn, checkOut, guests, rooms, statusLabel, onUpdate, true);
+    }
+
+    private void searchAvailableRooms(DatePicker checkIn, DatePicker checkOut,
+                                      JSpinner guests, JComboBox<Room> rooms,
+                                      JLabel statusLabel, Runnable onUpdate, boolean showPopup) throws Exception {
+        LocalDate start = checkIn.getDate();
+        LocalDate end = checkOut.getDate();
+        if (!end.isAfter(start)) {
+            throw new IllegalArgumentException("Tanggal check-out harus setelah tanggal check-in.");
+        }
+        int guestCount = (Integer) guests.getValue();
+        List<Room> found = service.findAvailableRooms(start, end, guestCount);
         rooms.setModel(new DefaultComboBoxModel<>(found.toArray(Room[]::new)));
+        long nights = java.time.temporal.ChronoUnit.DAYS.between(start, end);
+        if (nights < 1) nights = 1;
+
+        java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
         if (found.isEmpty()) {
-            showInfo("Belum ada kamar yang tersedia pada tanggal tersebut. Silakan pilih tanggal lain.");
+            if (statusLabel != null) {
+                statusLabel.setText("<html><font color='#dc2626'><b>✕ Tidak ada kamar tersedia</b> untuk " + start.format(fmt) + " s/d " + end.format(fmt) + " (" + guestCount + " tamu)</font></html>");
+            }
+            if (onUpdate != null) onUpdate.run();
+            if (showPopup) {
+                showInfo("Belum ada kamar yang tersedia pada rentang tanggal " + start.format(fmt) + " s/d " + end.format(fmt) + " (" + guestCount + " tamu).\nSilakan pilih tanggal lain.");
+            }
+        } else {
+            if (statusLabel != null) {
+                statusLabel.setText("<html><font color='#16a34a'><b>✓ Ditemukan " + found.size() + " kamar tersedia</b> untuk " + nights + " malam (" + guestCount + " tamu)</font></html>");
+            }
+            if (onUpdate != null) onUpdate.run();
+            if (showPopup) {
+                showInfo("Ditemukan " + found.size() + " kamar yang siap dipesan untuk periode "
+                        + start.format(fmt) + " s/d " + end.format(fmt) + " (" + nights + " malam).\nSilakan pilih kamar yang diinginkan.");
+            }
         }
     }
 
@@ -537,6 +656,35 @@ public final class HotelApp {
         panel.setBorder(BorderFactory.createEmptyBorder(22, 28, 22, 28));
         panel.add(sectionHeading("Reservasi Saya", "Lihat status dan rincian pemesanan Anda."), BorderLayout.NORTH);
         JTable table = table(new String[]{"ID Booking", "Kamar", "Check-in", "Check-out", "Jumlah", "Total", "Status"});
+
+        // Styling status: Hijau untuk Confirmed/Dikonfirmasi, Abu-abu untuk Cancelled/Dibatalkan
+        table.getColumnModel().getColumn(6).setCellRenderer(new DefaultTableCellRenderer() {
+            private static final long serialVersionUID = 1L;
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                                                           boolean selected, boolean focused,
+                                                           int row, int column) {
+                JLabel badge = (JLabel) super.getTableCellRendererComponent(
+                        table, value, selected, focused, row, column);
+                badge.setHorizontalAlignment(SwingConstants.CENTER);
+                badge.setOpaque(true);
+                if (!selected && value != null) {
+                    String statusText = value.toString().toUpperCase(Locale.ROOT);
+                    if (statusText.contains("CONFIRM") || statusText.contains("DIKONFIRMASI")) {
+                        badge.setForeground(new Color(21, 128, 61));
+                        badge.setBackground(new Color(220, 252, 231));
+                    } else if (statusText.contains("CANCEL") || statusText.contains("BATAL")) {
+                        badge.setForeground(new Color(107, 114, 128));
+                        badge.setBackground(new Color(243, 244, 246));
+                    } else {
+                        badge.setForeground(new Color(180, 83, 9));
+                        badge.setBackground(new Color(254, 243, 199));
+                    }
+                }
+                return badge;
+            }
+        });
+
         fillGuestReservations(table);
         panel.add(new JScrollPane(table), BorderLayout.CENTER);
         JButton cancel = dangerButton("Batalkan reservasi terpilih");
@@ -544,10 +692,18 @@ public final class HotelApp {
             int row = table.getSelectedRow();
             if (row < 0) { showError("Pilih reservasi yang ingin dibatalkan."); return; }
             String id = table.getValueAt(row, 0).toString();
-            if (confirm("Batalkan reservasi " + id + "?")) runAction(() -> {
-                service.cancelReservation(id, currentAccount.getUsername(), false);
-                fillGuestReservations(table);
-            });
+            int answer = JOptionPane.showConfirmDialog(frame,
+                    "Apakah Anda yakin ingin membatalkan reservasi " + id + "?",
+                    "Konfirmasi Pembatalan",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (answer == JOptionPane.YES_OPTION) {
+                runAction(() -> {
+                    service.cancelReservation(id, currentAccount.getUsername(), false);
+                    fillGuestReservations(table);
+                    showInfo("Reservasi " + id + " berhasil dibatalkan.");
+                });
+            }
         });
         panel.add(cancel, BorderLayout.SOUTH);
         return panel;
@@ -616,18 +772,35 @@ public final class HotelApp {
         details.setOpaque(false);
         details.setBorder(BorderFactory.createEmptyBorder(14, 9, 2, 9));
         details.setLayout(new BoxLayout(details, BoxLayout.Y_AXIS));
-        details.add(label(room.getCategory().toUpperCase(Locale.ROOT), 11, BLUE_ACCENT, true));
-        details.add(Box.createVerticalStrut(5));
-        details.add(label("Kamar " + room.getNumber() + " · " + room.getFloor(), 17, TEXT, true));
-        details.add(Box.createVerticalStrut(6));
-        details.add(label(room.getBedType() + " · Maks. " + room.getCapacity() + " tamu", 12, MUTED, false));
-        details.add(Box.createVerticalStrut(6));
+
+        JLabel catLabel = label(room.getCategory().toUpperCase(Locale.ROOT), 11, BLUE_ACCENT, true);
+        JLabel nameLabel = label("Kamar " + room.getNumber() + " · " + room.getFloor(), 17, TEXT, true);
+        JLabel bedLabel = label(room.getBedType() + " · Maks. " + room.getCapacity() + " tamu", 12, MUTED, false);
         JLabel facilities = label(room.getAmenities(), 12, MUTED, false);
         facilities.setToolTipText(room.getAmenities());
+
+        catLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        bedLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        facilities.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        catLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        nameLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        bedLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        facilities.setHorizontalAlignment(SwingConstants.CENTER);
+
+        details.add(catLabel);
+        details.add(Box.createVerticalStrut(5));
+        details.add(nameLabel);
+        details.add(Box.createVerticalStrut(6));
+        details.add(bedLabel);
+        details.add(Box.createVerticalStrut(6));
         details.add(facilities);
         details.add(Box.createVerticalStrut(12));
+
         JPanel bottom = new JPanel(new BorderLayout(6, 0));
         bottom.setOpaque(false);
+        bottom.setAlignmentX(Component.CENTER_ALIGNMENT);
         JPanel rate = new JPanel();
         rate.setOpaque(false);
         rate.setLayout(new BoxLayout(rate, BoxLayout.Y_AXIS));
@@ -658,8 +831,8 @@ public final class HotelApp {
         showGuestHomeTab(1);
         if (bookingCheckIn == null || bookingRoomChoice == null) return;
         runAction(() -> {
-            List<Room> available = service.findAvailableRooms(dateValue(bookingCheckIn),
-                    dateValue(bookingCheckOut), (Integer) bookingGuests.getValue());
+            List<Room> available = service.findAvailableRooms(bookingCheckIn.getDate(),
+                    bookingCheckOut.getDate(), (Integer) bookingGuests.getValue());
             if (available.stream().noneMatch(candidate -> candidate.getNumber().equals(room.getNumber()))) {
                 bookingRoomChoice.setModel(new DefaultComboBoxModel<>(available.toArray(Room[]::new)));
                 showInfo("Kamar ini belum tersedia pada tanggal yang dipilih. Silakan cari tanggal lainnya.");
@@ -1058,8 +1231,16 @@ public final class HotelApp {
         JTextField name = new JTextField(editing ? existing.getGuestName() : "");
         JTextField phone = new JTextField(editing ? existing.getPhone() : "");
         JComboBox<Room> room = new JComboBox<>(service.getRooms().toArray(Room[]::new));
-        JSpinner checkIn = dateSpinner(editing ? existing.getCheckIn() : LocalDate.now().plusDays(1));
-        JSpinner checkOut = dateSpinner(editing ? existing.getCheckOut() : LocalDate.now().plusDays(2));
+        DatePicker checkIn = new DatePicker(editing ? existing.getCheckIn() : LocalDate.now().plusDays(1));
+        DatePicker checkOut = new DatePicker(editing ? existing.getCheckOut() : LocalDate.now().plusDays(2));
+        checkIn.setMinDate(LocalDate.now());
+        checkOut.setMinDate(checkIn.getDate().plusDays(1));
+        checkIn.addDateChangeListener(newDate -> {
+            if (!checkOut.getDate().isAfter(newDate)) {
+                checkOut.setDate(newDate.plusDays(1));
+            }
+            checkOut.setMinDate(newDate.plusDays(1));
+        });
         JSpinner guests = new JSpinner(new SpinnerNumberModel(editing ? existing.getGuests() : 1, 1, 12, 1));
         JComboBox<String> payment = new JComboBox<>(new String[]{
                 "Transfer Bank Perusahaan (Invoice)", "Cash / EDC Front Desk",
@@ -1086,8 +1267,8 @@ public final class HotelApp {
         addFormRow(form, c, 0, "Nama lengkap tamu", name);
         addFormRow(form, c, 1, "Nomor telepon / WhatsApp", phone);
         addFormRow(form, c, 2, "Pilihan kamar", room);
-        addFormRow(form, c, 3, "Tanggal check-in", checkIn);
-        addFormRow(form, c, 4, "Tanggal check-out", checkOut);
+        addFormRow(form, c, 3, "Tanggal check-in (kalender)", checkIn);
+        addFormRow(form, c, 4, "Tanggal check-out (kalender)", checkOut);
         addFormRow(form, c, 5, "Jumlah tamu", guests);
         addFormRow(form, c, 6, "Metode pembayaran", payment);
         addFormRow(form, c, 7, "Status reservasi", status);
@@ -1101,12 +1282,12 @@ public final class HotelApp {
             if (selectedRoom == null) throw new IllegalArgumentException("Pilih kamar terlebih dahulu.");
             if (editing) {
                 service.updateReservation(existing.getId(), name.getText(), phone.getText(),
-                        selectedRoom.getNumber(), dateValue(checkIn), dateValue(checkOut),
+                        selectedRoom.getNumber(), checkIn.getDate(), checkOut.getDate(),
                         (Integer) guests.getValue(), (String) payment.getSelectedItem(), notes.getText(),
                         (ReservationStatus) status.getSelectedItem());
             } else {
                 service.createManualReservation(name.getText(), phone.getText(), selectedRoom.getNumber(),
-                        dateValue(checkIn), dateValue(checkOut), (Integer) guests.getValue(),
+                        checkIn.getDate(), checkOut.getDate(), (Integer) guests.getValue(),
                         (String) payment.getSelectedItem(), notes.getText());
             }
             refreshReservations();
@@ -1313,9 +1494,16 @@ public final class HotelApp {
         JPanel heading = new JPanel();
         heading.setOpaque(false);
         heading.setLayout(new BoxLayout(heading, BoxLayout.Y_AXIS));
-        heading.add(label(title, 25, TEXT, true));
+        JLabel lTitle = label(title, 25, TEXT, true);
+        JLabel lSubtitle = label(subtitle, 13, MUTED, false);
+        lTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lSubtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lTitle.setHorizontalAlignment(SwingConstants.CENTER);
+        lSubtitle.setHorizontalAlignment(SwingConstants.CENTER);
+        heading.add(lTitle);
         heading.add(Box.createVerticalStrut(5));
-        heading.add(label(subtitle, 13, MUTED, false));
+        heading.add(lSubtitle);
+        heading.setAlignmentX(Component.CENTER_ALIGNMENT);
         return heading;
     }
 
@@ -1425,6 +1613,135 @@ public final class HotelApp {
 
     private LocalDate dateValue(JSpinner spinner) {
         return ((Date) spinner.getValue()).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
+    private LocalDate dateValue(DatePicker picker) {
+        return picker.getDate();
+    }
+
+    private JPanel createAppFooter() {
+        JPanel footer = new JPanel(new BorderLayout(16, 0));
+        footer.setBackground(Color.WHITE);
+        footer.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER),
+                BorderFactory.createEmptyBorder(10, 28, 10, 28)));
+
+        JPanel left = new JPanel();
+        left.setOpaque(false);
+        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+        left.add(label("© 2026 StayEase Hotel & Suites · Sistem Reservasi Hotel", 12, TEXT, true));
+        left.add(Box.createVerticalStrut(2));
+        left.add(label("Layanan Reservasi & Informasi Tamu Terpercaya", 11, MUTED, false));
+
+        JPanel center = new JPanel();
+        center.setOpaque(false);
+        center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+        center.add(label("📞 Front Desk: (021) 555-7829  ·  WhatsApp: 0812-3456-7890", 11, TEXT, false));
+        center.add(Box.createVerticalStrut(2));
+        center.add(label("✉ Layanan Tamu: support@stayease.id  ·  reservations@stayease.id", 11, MUTED, false));
+
+        JPanel right = new JPanel();
+        right.setOpaque(false);
+        right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
+        right.add(label("📍 Jl. Sudirman No. 45, Jakarta Pusat", 11, TEXT, false));
+        right.add(Box.createVerticalStrut(2));
+        right.add(label("Check-in: 14:00 WIB  ·  Check-out: 12:00 WIB", 11, BLUE_ACCENT, true));
+
+        footer.add(left, BorderLayout.WEST);
+        footer.add(center, BorderLayout.CENTER);
+        footer.add(right, BorderLayout.EAST);
+        return footer;
+    }
+
+    private JPanel createLandingFooter() {
+        JPanel footer = cardPanel();
+        footer.setLayout(new BorderLayout(0, 16));
+        footer.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER),
+                BorderFactory.createEmptyBorder(24, 28, 20, 28)));
+
+        JPanel columns = new JPanel(new GridLayout(1, 4, 24, 0));
+        columns.setOpaque(false);
+
+        JPanel col1 = new JPanel();
+        col1.setOpaque(false);
+        col1.setLayout(new BoxLayout(col1, BoxLayout.Y_AXIS));
+        col1.add(label("STAYEASE HOTEL & SUITES", 13, BLUE_ACCENT, true));
+        col1.add(Box.createVerticalStrut(8));
+        col1.add(label("<html>Akomodasi berstandar bintang lima dengan sentuhan kemewahan modern dan pelayanan istimewa 24 jam untuk kenyamanan perjalanan Anda.</html>", 12, MUTED, false));
+        col1.add(Box.createVerticalStrut(10));
+        col1.add(label("★★★★★  Hotel Bintang 5 Terakreditasi", 11, new Color(217, 119, 6), true));
+        columns.add(col1);
+
+        JPanel col2 = new JPanel();
+        col2.setOpaque(false);
+        col2.setLayout(new BoxLayout(col2, BoxLayout.Y_AXIS));
+        col2.add(label("WAKTU & KETENTUAN", 13, TEXT, true));
+        col2.add(Box.createVerticalStrut(8));
+        col2.add(label("• Check-in: Mulai pukul 14:00 WIB", 12, MUTED, false));
+        col2.add(Box.createVerticalStrut(4));
+        col2.add(label("• Check-out: Maksimal pukul 12:00 WIB", 12, MUTED, false));
+        col2.add(Box.createVerticalStrut(4));
+        col2.add(label("• Resepsionis: Siaga 24 Jam Nonstop", 12, MUTED, false));
+        col2.add(Box.createVerticalStrut(4));
+        col2.add(label("• Kawasan Kamar Bebas Asap Rokok", 12, MUTED, false));
+        columns.add(col2);
+
+        JPanel col3 = new JPanel();
+        col3.setOpaque(false);
+        col3.setLayout(new BoxLayout(col3, BoxLayout.Y_AXIS));
+        col3.add(label("FASILITAS UNGGULAN", 13, TEXT, true));
+        col3.add(Box.createVerticalStrut(8));
+        col3.add(label("• Restoran & Sky Dining Lounge", 12, MUTED, false));
+        col3.add(Box.createVerticalStrut(4));
+        col3.add(label("• Infinity Pool & Fitness Center", 12, MUTED, false));
+        col3.add(Box.createVerticalStrut(4));
+        col3.add(label("• Spa, Deep Soaking Tub & Sauna", 12, MUTED, false));
+        col3.add(Box.createVerticalStrut(4));
+        col3.add(label("• Ruang Meeting & Business Center", 12, MUTED, false));
+        columns.add(col3);
+
+        JPanel col4 = new JPanel();
+        col4.setOpaque(false);
+        col4.setLayout(new BoxLayout(col4, BoxLayout.Y_AXIS));
+        col4.add(label("KONTAK & LOKASI", 13, TEXT, true));
+        col4.add(Box.createVerticalStrut(8));
+        col4.add(label("📍 Jl. Jend. Sudirman No. 45, Jakarta", 12, MUTED, false));
+        col4.add(Box.createVerticalStrut(4));
+        col4.add(label("📞 Hotline: (021) 555-7829", 12, MUTED, false));
+        col4.add(Box.createVerticalStrut(4));
+        col4.add(label("📱 WhatsApp: 0812-3456-7890", 12, MUTED, false));
+        col4.add(Box.createVerticalStrut(4));
+        col4.add(label("✉ info@stayease.id", 12, MUTED, false));
+        columns.add(col4);
+
+        footer.add(columns, BorderLayout.CENTER);
+
+        JPanel bottomBar = new JPanel(new BorderLayout());
+        bottomBar.setOpaque(false);
+        bottomBar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER),
+                BorderFactory.createEmptyBorder(12, 0, 4, 0)));
+        JLabel copyright = label("© 2026 StayEase Hotel & Suites. Seluruh hak cipta dilindungi.", 11, MUTED, false);
+        JLabel tagline = label("Temukan Kenyamanan di Setiap Perjalanan", 11, BLUE_ACCENT, true);
+        bottomBar.add(copyright, BorderLayout.WEST);
+        bottomBar.add(tagline, BorderLayout.EAST);
+        footer.add(bottomBar, BorderLayout.SOUTH);
+
+        return footer;
+    }
+
+    private JPanel createAuthFooter() {
+        JPanel footer = new JPanel(new BorderLayout());
+        footer.setOpaque(false);
+        footer.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER),
+                BorderFactory.createEmptyBorder(14, 32, 14, 32)));
+        JLabel copyright = label("© 2026 StayEase Hotel Management System · Temukan kenyamanan di setiap perjalanan", 12, MUTED, false);
+        JLabel help = label("Butuh bantuan? Hubungi Front Desk: (021) 555-7829", 11, BLUE_ACCENT, true);
+        footer.add(copyright, BorderLayout.WEST);
+        footer.add(help, BorderLayout.EAST);
+        return footer;
     }
 
     private void addFormRow(JPanel form, GridBagConstraints constraints, int row, String title, Component input) {

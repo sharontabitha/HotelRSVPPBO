@@ -1,9 +1,13 @@
 package hotel.ui;
 
+import javax.swing.BorderFactory;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
+import java.awt.Color;
 import java.awt.Component;
+import java.awt.Font;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -27,6 +31,23 @@ public final class AdminWorkspace extends JPanel {
         right.setOpaque(false);
         right.add(topbar, BorderLayout.NORTH);
         right.add(pages, BorderLayout.CENTER);
+
+        // FITUR FOOTER ADMIN: Copyright & Indikator Sistem Online
+        JPanel footer = new JPanel(new BorderLayout());
+        footer.setBackground(Color.WHITE);
+        footer.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, StayEaseTheme.BORDER),
+                BorderFactory.createEmptyBorder(9, 24, 9, 24)));
+        JLabel copyright = new JLabel("© 2026 StayEase Hotel Management · Portal Administrator");
+        copyright.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        copyright.setForeground(StayEaseTheme.MUTED);
+        JLabel status = new JLabel("● Sistem Online · Versi 1.0.0");
+        status.setFont(new Font("SansSerif", Font.BOLD, 11));
+        status.setForeground(StayEaseTheme.SUCCESS);
+        footer.add(copyright, BorderLayout.WEST);
+        footer.add(status, BorderLayout.EAST);
+        right.add(footer, BorderLayout.SOUTH);
+
         add(right, BorderLayout.CENTER);
     }
 
