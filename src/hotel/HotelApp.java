@@ -470,20 +470,19 @@ public final class HotelApp {
     }
 
     private JPanel bookingPanel() {
-        JPanel panel = new JPanel(new BorderLayout(18, 18));
+        JPanel panel = new JPanel(new BorderLayout(14, 14));
         panel.setOpaque(false);
-        panel.setBorder(BorderFactory.createEmptyBorder(24, 32, 24, 32));
+        panel.setBorder(BorderFactory.createEmptyBorder(16, 28, 16, 28));
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false);
         top.add(sectionHeading("Pesan Kamar", "Pilih tanggal menginap dan periksa kamar yang tersedia."), BorderLayout.WEST);
-        panel.add(top, BorderLayout.NORTH);
 
         JPanel form = cardPanel();
         form.setLayout(new GridBagLayout());
         form.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(BORDER),
-                BorderFactory.createEmptyBorder(22, 24, 22, 24)));
+                BorderFactory.createEmptyBorder(18, 22, 18, 22)));
         GridBagConstraints c = constraints();
-        c.insets = new Insets(8, 8, 8, 8);
+        c.insets = new Insets(6, 8, 6, 8);
         c.fill = GridBagConstraints.HORIZONTAL;
         c.weightx = 1;
 
@@ -549,7 +548,9 @@ public final class HotelApp {
             long nights = java.time.temporal.ChronoUnit.DAYS.between(checkIn.getDate(), checkOut.getDate());
             if (nights < 1) nights = 1;
             BigDecimal totalBiaya = selected.hitungTarif((int) nights);
-            String htmlText = "<html><b>" + html(selected.getCategory()) + "</b> (Kamar " + selected.getNumber() + " · Lantai " + selected.getFloor() + ")<br>"
+            String floorText = selected.getFloor().toLowerCase(Locale.ROOT).startsWith("lantai")
+                    ? selected.getFloor() : "Lantai " + selected.getFloor();
+            String htmlText = "<html><b>" + html(selected.getCategory()) + "</b> (Kamar " + selected.getNumber() + " · " + html(floorText) + ")<br>"
                     + "Tipe Ranjang: " + html(selected.getBedType()) + " · Fasilitas: " + html(selected.getAmenities()) + "<br>"
                     + "Tarif: <b>" + CURRENCY.format(selected.getNightlyRate()) + "</b> / malam &times; <b>" + nights + " malam</b> = "
                     + "<span style='color:#1e3a8a; font-size:14px; font-weight:bold;'>" + CURRENCY.format(totalBiaya) + "</span></html>";
@@ -560,7 +561,7 @@ public final class HotelApp {
         search.addActionListener(event -> runAction(() ->
                 searchAvailableRooms(checkIn, checkOut, guests, rooms, searchStatus, updateSummary, true)));
 
-        JTextArea notes = textArea(3);
+        JTextArea notes = textArea(2);
         addFormRow(form, c, 6, "Permintaan khusus", new JScrollPane(notes));
         JComboBox<String> payment = new JComboBox<>(new String[]{
                 "Transfer Bank Virtual Account", "QRIS", "Kartu Kredit", "Bayar di Front Desk"
@@ -591,7 +592,17 @@ public final class HotelApp {
             } catch (Exception ignored) {}
         });
 
-        panel.add(form, BorderLayout.CENTER);
+        JPanel content = new JPanel(new BorderLayout(0, 14));
+        content.setOpaque(false);
+        content.add(top, BorderLayout.NORTH);
+        content.add(form, BorderLayout.CENTER);
+
+        JScrollPane scroll = new JScrollPane(content);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
 
@@ -647,6 +658,35 @@ public final class HotelApp {
         panel.setBorder(BorderFactory.createEmptyBorder(22, 28, 22, 28));
         panel.add(sectionHeading("Reservasi Saya", "Lihat status dan rincian pemesanan Anda."), BorderLayout.NORTH);
         JTable table = table(new String[]{"ID Booking", "Kamar", "Check-in", "Check-out", "Jumlah", "Total", "Status"});
+
+        // Styling status: Hijau untuk Confirmed/Dikonfirmasi, Abu-abu untuk Cancelled/Dibatalkan
+        table.getColumnModel().getColumn(6).setCellRenderer(new DefaultTableCellRenderer() {
+            private static final long serialVersionUID = 1L;
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                                                           boolean selected, boolean focused,
+                                                           int row, int column) {
+                JLabel badge = (JLabel) super.getTableCellRendererComponent(
+                        table, value, selected, focused, row, column);
+                badge.setHorizontalAlignment(SwingConstants.CENTER);
+                badge.setOpaque(true);
+                if (!selected && value != null) {
+                    String statusText = value.toString().toUpperCase(Locale.ROOT);
+                    if (statusText.contains("CONFIRM") || statusText.contains("DIKONFIRMASI")) {
+                        badge.setForeground(new Color(21, 128, 61));
+                        badge.setBackground(new Color(220, 252, 231));
+                    } else if (statusText.contains("CANCEL") || statusText.contains("BATAL")) {
+                        badge.setForeground(new Color(107, 114, 128));
+                        badge.setBackground(new Color(243, 244, 246));
+                    } else {
+                        badge.setForeground(new Color(180, 83, 9));
+                        badge.setBackground(new Color(254, 243, 199));
+                    }
+                }
+                return badge;
+            }
+        });
+
         fillGuestReservations(table);
         panel.add(new JScrollPane(table), BorderLayout.CENTER);
         JButton cancel = dangerButton("Batalkan reservasi terpilih");
@@ -654,10 +694,18 @@ public final class HotelApp {
             int row = table.getSelectedRow();
             if (row < 0) { showError("Pilih reservasi yang ingin dibatalkan."); return; }
             String id = table.getValueAt(row, 0).toString();
-            if (confirm("Batalkan reservasi " + id + "?")) runAction(() -> {
-                service.cancelReservation(id, currentAccount.getUsername(), false);
-                fillGuestReservations(table);
-            });
+            int answer = JOptionPane.showConfirmDialog(frame,
+                    "Apakah Anda yakin ingin membatalkan reservasi " + id + "?",
+                    "Konfirmasi Pembatalan",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (answer == JOptionPane.YES_OPTION) {
+                runAction(() -> {
+                    service.cancelReservation(id, currentAccount.getUsername(), false);
+                    fillGuestReservations(table);
+                    showInfo("Reservasi " + id + " berhasil dibatalkan.");
+                });
+            }
         });
         panel.add(cancel, BorderLayout.SOUTH);
         return panel;
