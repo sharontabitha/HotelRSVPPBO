@@ -489,6 +489,13 @@ public final class HotelApp {
         search.addActionListener(event -> runAction(() ->
                 searchAvailableRooms(checkIn, checkOut, guests, rooms)));
 
+        try {
+            List<Room> initialRooms = service.findAvailableRooms(dateValue(checkIn), dateValue(checkOut),
+                    (Integer) guests.getValue());
+            rooms.setModel(new DefaultComboBoxModel<>(initialRooms.toArray(Room[]::new)));
+        } catch (Exception ignored) {
+        }
+
         JTextArea notes = textArea(3);
         addFormRow(form, c, 5, "Permintaan khusus", new JScrollPane(notes));
         JComboBox<String> payment = new JComboBox<>(new String[]{
@@ -507,9 +514,7 @@ public final class HotelApp {
             Reservation reservation = service.createReservation(guest.getUsername(), guest.getFullName(),
                     guest.getPhone(), selected.getNumber(), dateValue(checkIn), dateValue(checkOut),
                     (Integer) guests.getValue(), (String) payment.getSelectedItem(), notes.getText());
-            showInfo("Reservasi berhasil dibuat.\nID: " + reservation.getId()
-                    + "\nStatus: " + reservation.getStatus()
-                    + "\nEstimasi total: " + CURRENCY.format(reservation.calculateTotal()));
+            showBookingInvoiceDialog(reservation, selected);
             showGuestHome();
         }));
         panel.add(form, BorderLayout.CENTER);
@@ -1460,6 +1465,156 @@ public final class HotelApp {
         } catch (Exception exception) {
             showError(exception.getMessage() == null ? "Operasi tidak dapat diselesaikan." : exception.getMessage());
         }
+    }
+
+    private void showBookingInvoiceDialog(Reservation reservation, Room room) {
+        final int nights = Math.max(1, (int) java.time.temporal.ChronoUnit.DAYS.between(reservation.getCheckIn(), reservation.getCheckOut()));
+
+        BigDecimal baseRate = room.getBaseRate();
+        BigDecimal tarifFasilitas = room.hitungTarif();
+        BigDecimal subtotal = room.hitungTarif(nights);
+
+        double diskonPersen = nights >= 5 ? 15.0 : (nights >= 3 ? 10.0 : 0.0);
+        BigDecimal totalBayar = diskonPersen > 0 ? room.hitungTarif(nights, diskonPersen) : subtotal;
+        BigDecimal potonganDiskon = subtotal.subtract(totalBayar);
+
+        javax.swing.JDialog dialog = new javax.swing.JDialog(frame, "Bukti Pemesanan & Rincian Tagihan (Invoice)", true);
+        dialog.setLayout(new BorderLayout(16, 16));
+        dialog.getContentPane().setBackground(BG);
+
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(BG);
+        content.setBorder(BorderFactory.createEmptyBorder(20, 24, 16, 24));
+
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+        JLabel title = label("STAYEASE HOTEL & SUITES", 18, BLUE_ACCENT, true);
+        JLabel subtitle = label("BUKTI RESERVASI & INVOICE PEMESANAN", 12, MUTED, false);
+        JPanel titleBox = new JPanel(new GridLayout(2, 1, 0, 2));
+        titleBox.setOpaque(false);
+        titleBox.add(title);
+        titleBox.add(subtitle);
+        header.add(titleBox, BorderLayout.WEST);
+
+        JLabel statusBadge = label(" " + reservation.getStatus() + " ", 12, Color.WHITE, true);
+        statusBadge.setOpaque(true);
+        statusBadge.setBackground(new Color(22, 101, 52));
+        statusBadge.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        header.add(statusBadge, BorderLayout.EAST);
+        content.add(header);
+        content.add(Box.createVerticalStrut(14));
+
+        JPanel card = cardPanel();
+        card.setLayout(new GridLayout(0, 2, 8, 8));
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER),
+                BorderFactory.createEmptyBorder(12, 14, 12, 14)));
+
+        card.add(label("ID Pemesanan:", 12, MUTED, false));
+        card.add(label(reservation.getId(), 12, TEXT, true));
+        card.add(label("Nama Tamu:", 12, MUTED, false));
+        card.add(label(reservation.getGuestName(), 12, TEXT, true));
+        card.add(label("Kamar:", 12, MUTED, false));
+        card.add(label(room.getNumber() + " (" + room.getCategory() + ")", 12, TEXT, true));
+        card.add(label("Periode Menginap:", 12, MUTED, false));
+        card.add(label(reservation.getCheckIn() + " s.d. " + reservation.getCheckOut() + " (" + nights + " malam)", 12, TEXT, false));
+        card.add(label("Jumlah Tamu:", 12, MUTED, false));
+        card.add(label(reservation.getGuests() + " Orang", 12, TEXT, false));
+        card.add(label("Metode Pembayaran:", 12, MUTED, false));
+        card.add(label(reservation.getPaymentMethod(), 12, TEXT, false));
+        content.add(card);
+        content.add(Box.createVerticalStrut(12));
+
+        JPanel feeCard = cardPanel();
+        feeCard.setLayout(new GridLayout(0, 2, 8, 6));
+        feeCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BLUE_ACCENT),
+                BorderFactory.createEmptyBorder(12, 14, 12, 14)));
+
+        feeCard.add(label("Tarif Dasar per Malam:", 12, MUTED, false));
+        feeCard.add(label(CURRENCY.format(baseRate), 12, TEXT, false));
+        feeCard.add(label("Tarif + Fasilitas (hitungTarif):", 12, MUTED, false));
+        feeCard.add(label(CURRENCY.format(tarifFasilitas) + " / malam", 12, TEXT, false));
+        feeCard.add(label("Subtotal (" + nights + " malam):", 12, MUTED, false));
+        feeCard.add(label(CURRENCY.format(subtotal), 12, TEXT, false));
+        feeCard.add(label("Diskon Menginap Panjang:", 12, MUTED, false));
+        feeCard.add(label(diskonPersen > 0 ? ("-" + CURRENCY.format(potonganDiskon) + " (" + (int) diskonPersen + "%)") : "Rp 0 (0%)", 12,
+                diskonPersen > 0 ? new Color(22, 101, 52) : MUTED, true));
+        feeCard.add(label("TOTAL PEMBAYARAN:", 14, TEXT, true));
+        feeCard.add(label(CURRENCY.format(totalBayar), 16, BLUE_ACCENT, true));
+        content.add(feeCard);
+
+        JPanel actions = new JPanel(new BorderLayout(8, 8));
+        actions.setOpaque(false);
+        actions.setBorder(BorderFactory.createEmptyBorder(10, 24, 18, 24));
+
+        JButton saveTxt = secondaryButton("Simpan Bukti (TXT)");
+        saveTxt.addActionListener(e -> {
+            try {
+                String fileName = "invoice-" + reservation.getId().substring(0, Math.min(8, reservation.getId().length())) + ".txt";
+                java.nio.file.Path invoicePath = java.nio.file.Path.of(System.getProperty("user.dir"), fileName);
+                String invoiceText = String.format("""
+                        ========================================================
+                                      STAYEASE HOTEL & SUITES
+                                     BUKTI RESERVASI & INVOICE
+                        ========================================================
+                        ID Booking         : %s
+                        Nama Tamu          : %s
+                        No. Telepon        : %s
+                        Kamar              : %s - %s
+                        Fasilitas          : %s
+                        Check-in           : %s
+                        Check-out          : %s (%d Malam)
+                        Jumlah Tamu        : %d Orang
+                        Metode Pembayaran  : %s
+                        Status             : %s
+                        --------------------------------------------------------
+                        RINCIAN TARIF (OOP hitungTarif)
+                        Tarif Dasar        : %s
+                        Tarif Fasilitas    : %s / malam
+                        Subtotal (%d malam): %s
+                        Potongan Diskon    : -%s (%d%%)
+                        --------------------------------------------------------
+                        TOTAL PEMBAYARAN   : %s
+                        ========================================================
+                        Terima kasih telah memilih StayEase Hotel & Suites!
+                        """,
+                        reservation.getId(),
+                        reservation.getGuestName(),
+                        reservation.getPhone(),
+                        room.getNumber(), room.getCategory(),
+                        room.getAmenities(),
+                        reservation.getCheckIn(),
+                        reservation.getCheckOut(), nights,
+                        reservation.getGuests(),
+                        reservation.getPaymentMethod(),
+                        reservation.getStatus(),
+                        CURRENCY.format(baseRate),
+                        CURRENCY.format(tarifFasilitas),
+                        nights, CURRENCY.format(subtotal),
+                        CURRENCY.format(potonganDiskon), (int) diskonPersen,
+                        CURRENCY.format(totalBayar)
+                );
+                java.nio.file.Files.writeString(invoicePath, invoiceText);
+                showInfo("Invoice berhasil disimpan ke file:\n" + invoicePath.toAbsolutePath());
+            } catch (Exception ex) {
+                showError("Gagal menyimpan file invoice: " + ex.getMessage());
+            }
+        });
+
+        JButton close = primaryButton("Selesai & Tutup");
+        close.addActionListener(e -> dialog.dispose());
+
+        actions.add(saveTxt, BorderLayout.WEST);
+        actions.add(close, BorderLayout.EAST);
+
+        dialog.add(content, BorderLayout.CENTER);
+        dialog.add(actions, BorderLayout.SOUTH);
+        dialog.pack();
+        dialog.setSize(Math.max(dialog.getWidth(), 520), Math.max(dialog.getHeight(), 540));
+        dialog.setLocationRelativeTo(frame);
+        dialog.setVisible(true);
     }
 
     private void showInfo(String message) {
