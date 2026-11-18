@@ -414,8 +414,8 @@ public final class HotelApp {
             checkOut.setMinDate(newDate.plusDays(1));
         });
         JSpinner guests = new JSpinner(new SpinnerNumberModel(2, 1, 12, 1));
-        search.add(searchField("CHECK-IN (KALENDER)", checkIn), gridCell(c, 0, 0, 1));
-        search.add(searchField("CHECK-OUT (KALENDER)", checkOut), gridCell(c, 1, 0, 1));
+        search.add(searchField("CHECK-IN", checkIn), gridCell(c, 0, 0, 1));
+        search.add(searchField("CHECK-OUT", checkOut), gridCell(c, 1, 0, 1));
         search.add(searchField("JUMLAH TAMU", guests), gridCell(c, 2, 0, 1));
 
         JPanel buttonWrapper = new JPanel(new BorderLayout(0, 6));
@@ -1267,8 +1267,8 @@ public final class HotelApp {
         addFormRow(form, c, 0, "Nama lengkap tamu", name);
         addFormRow(form, c, 1, "Nomor telepon / WhatsApp", phone);
         addFormRow(form, c, 2, "Pilihan kamar", room);
-        addFormRow(form, c, 3, "Tanggal check-in (kalender)", checkIn);
-        addFormRow(form, c, 4, "Tanggal check-out (kalender)", checkOut);
+        addFormRow(form, c, 3, "Tanggal check-in", checkIn);
+        addFormRow(form, c, 4, "Tanggal check-out", checkOut);
         addFormRow(form, c, 5, "Jumlah tamu", guests);
         addFormRow(form, c, 6, "Metode pembayaran", payment);
         addFormRow(form, c, 7, "Status reservasi", status);
